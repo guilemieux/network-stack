@@ -3,6 +3,7 @@
  */
 
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <sys/types.h>
 #include <sys/socket.h>
@@ -10,51 +11,63 @@
 #include <arpa/inet.h>
 #include <netinet/in.h>
 
+// function prototypes
+void get_all_addresses(const char *hostname, struct addrinfo **res);
+void print_all_addresses(struct addrinfo *addresses);
+void print_address(const struct addrinfo *address_info);
+
 int main(int argc, char *argv[])
 {
-    struct addrinfo hints, *res, *p;
-    int status;
-    char ipstr[INET6_ADDRSTRLEN];
-
     if (argc != 2) {
         fprintf(stderr, "usage: showip hostname\n");
-        return 1;
+        exit(EXIT_FAILURE);
     }
-
-    memset(&hints, 0, sizeof hints);
-    hints.ai_family = AF_UNSPEC; // AF_INET or AF_INET6 to force version
-    hints.ai_socktype = SOCK_STREAM;
-
-    if ((status = getaddrinfo(argv[1], NULL, &hints, &res)) != 0) {
-        fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(status));
-        return 2;
-    }
-
-    printf("IP addressses for %s: \n\n", argv[1]);
-
-    for (p = res; p != NULL; p = p->ai_next) {
-        void *addr;
-        char *ipver;
-
-        // get the pointer to the address itself,
-        // different fields in IPv4 and IPv6
-        if (p->ai_family == AF_INET) { // IPv4
-            struct sockaddr_in *ipv4 = (struct sockaddr_in *)p->ai_addr;
-            addr = &(ipv4->sin_addr);
-            ipver = "IPv4";
-        } else { // IPv6
-            struct sockaddr_in6 *ipv6 = (struct sockaddr_in6 *)p->ai_addr;
-            addr = &(ipv6->sin6_addr);
-            ipver = "IPv6";
-        }
-
-        // convert the IP to a string and print it:
-        inet_ntop(p->ai_family, addr, ipstr, sizeof ipstr);
-        printf("  %s: %s\n", ipver, ipstr);
-    }
-    printf("\n");
-
-    freeaddrinfo(res); // free the linked list
-
+    char *hostname = argv[1];
+    struct addrinfo *addresses;
+    get_all_addresses(hostname, &addresses);
+    printf("IP addressses for %s: \n", hostname);
+    print_all_addresses(addresses);
+    freeaddrinfo(addresses); // free the linked list
     return 0;
+}
+
+void get_all_addresses(const char *host, struct addrinfo **res)
+{
+    struct addrinfo hint;
+    memset(&hint, 0, sizeof hint);
+    hint.ai_family = AF_UNSPEC; // AF_INET or AF_INET6 to force version
+    hint.ai_socktype = SOCK_STREAM;
+    int status = getaddrinfo(host, NULL, &hint, res);
+    if (status != 0) {
+        fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(status));
+        exit(EXIT_FAILURE);
+    }
+}
+
+void print_all_addresses(struct addrinfo *addresses)
+{
+    struct addrinfo *addrinfo_ptr;
+    for (addrinfo_ptr = addresses; addrinfo_ptr != NULL; addrinfo_ptr = addrinfo_ptr->ai_next) {
+        print_address(addrinfo_ptr);
+    }
+}
+
+void print_address(const struct addrinfo *address_info)
+{
+    void *addr;
+    char *ip_version;
+    if (address_info->ai_family == AF_INET) {
+        struct sockaddr_in *ipv4 =
+                (struct sockaddr_in *) address_info->ai_addr;
+        addr = &(ipv4->sin_addr);
+        ip_version = "IPv4";
+    } else {
+        struct sockaddr_in6 *ipv6 =
+                (struct sockaddr_in6 *) address_info->ai_addr;
+        addr = &(ipv6->sin6_addr);
+        ip_version = "IPv6";
+    }
+    char ip_str[INET6_ADDRSTRLEN];
+    inet_ntop(address_info->ai_family, addr, ip_str, sizeof ip_str);
+    printf(" - %s: %s\n", ip_version, ip_str);
 }
