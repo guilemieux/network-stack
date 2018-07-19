@@ -46,9 +46,9 @@ void get_all_addresses(const char *host, struct addrinfo **res)
 
 void print_all_addresses(struct addrinfo *addresses)
 {
-    struct addrinfo *addrinfo_ptr;
-    for (addrinfo_ptr = addresses; addrinfo_ptr != NULL; addrinfo_ptr = addrinfo_ptr->ai_next) {
-        print_address(addrinfo_ptr);
+    struct addrinfo *p;
+    for (p = addresses; p != NULL; p = p->ai_next) {
+        print_address(p);
     }
 }
 
